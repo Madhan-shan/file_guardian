@@ -100,7 +100,7 @@
   <div>
     <span class="live-badge">
       <span class="pulse"></span>
-      LIVE — refreshes every 2s
+      LIVE — refreshes every 5s
     </span>
   </div>
 </div>
@@ -174,7 +174,7 @@
   // ── No token needed — uses ntfy.sh ────────────────────────────────────────
   const TOPIC      = 'madhan-guardian-308c467d';
   const NTFY_URL   = `https://ntfy.sh/${TOPIC}/json?poll=1&since=10m`;
-  const REFRESH_MS = 2000;
+  const REFRESH_MS = 5000;
 
   async function fetchStatus() {
     animateRefresh();
