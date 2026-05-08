@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>File Guardian — Live Monitor</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0a0e1a;--surface:#111827;--card:#1a2235;
+    --accent:#00e5b0;--blue:#0077ff;--text:#f0f4ff;
+    --muted:#6b7a99;--border:#1e2d45;--danger:#ff4d6d;--warning:#ffaa00;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh;padding:16px;max-width:600px;margin:0 auto}
+
+  .header{background:var(--surface);border-radius:16px;padding:24px 20px 16px;
+           text-align:center;margin-bottom:14px;border-top:3px solid var(--accent)}
+  .lock-icon{font-size:44px;line-height:1;margin-bottom:8px}
+  .title{font-family:'Courier New',monospace;font-size:20px;font-weight:700;letter-spacing:4px}
+  .subtitle{color:var(--muted);font-size:11px;margin-top:3px}
+  .live-badge{display:inline-flex;align-items:center;gap:6px;
+              background:rgba(0,229,176,.1);border:1px solid var(--accent);
+              border-radius:20px;padding:4px 12px;font-size:11px;
+              color:var(--accent);font-weight:600;margin-top:10px}
+  .pulse{width:8px;height:8px;background:var(--accent);border-radius:50%;
+         animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.4}}
+
+  .card{background:var(--card);border-radius:14px;padding:16px;
+        margin-bottom:12px;border:1px solid var(--border)}
+  .card-label{font-family:'Courier New',monospace;font-size:10px;
+               font-weight:700;color:var(--muted);letter-spacing:2px;margin-bottom:10px}
+
+  .badge{display:inline-block;padding:6px 16px;border-radius:20px;
+         font-weight:700;font-size:12px;letter-spacing:1px}
+  .s-starting{background:rgba(255,170,0,.15);color:var(--warning);border:1px solid var(--warning)}
+  .s-running {background:rgba(0,229,176,.12);color:var(--accent); border:1px solid var(--accent)}
+  .s-done    {background:rgba(0,119,255,.15);color:var(--blue);   border:1px solid var(--blue)}
+  .s-error   {background:rgba(255,77,109,.15);color:var(--danger);border:1px solid var(--danger)}
+  .s-idle    {background:rgba(107,122,153,.15);color:var(--muted);border:1px solid var(--muted)}
+  .s-offline {background:rgba(107,122,153,.15);color:var(--muted);border:1px solid var(--muted)}
+
+  .phase{font-size:13px;color:var(--text);margin-top:8px;font-weight:500}
+  .pct{font-family:'Courier New',monospace;font-size:32px;font-weight:700;color:var(--accent)}
+  .bar-wrap{background:#0d1526;border-radius:8px;height:14px;overflow:hidden;margin:10px 0 6px}
+  .bar{height:100%;border-radius:8px;background:linear-gradient(90deg,var(--accent),#00b8d9);
+       transition:width .8s ease;min-width:2%;position:relative;overflow:hidden}
+  .bar::after{content:'';position:absolute;top:0;left:-60px;width:60px;height:100%;
+              background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);
+              animation:shimmer 1.8s infinite}
+  @keyframes shimmer{to{left:100%}}
+  .bar-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .stat{background:var(--card);border-radius:12px;padding:14px;
+        border:1px solid var(--border);text-align:center}
+  .stat-val{font-family:'Courier New',monospace;font-size:24px;
+             font-weight:700;color:var(--accent)}
+  .stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;
+             letter-spacing:1px;margin-top:3px}
+
+  .file-box{font-family:'Courier New',monospace;font-size:11px;color:var(--accent);
+            background:#0d1526;padding:10px 12px;border-radius:8px;
+            word-break:break-all;border-left:3px solid var(--accent);min-height:36px}
+
+  .chip{display:inline-flex;align-items:center;gap:4px;background:#0d1526;
+        border:1px solid var(--border);border-radius:8px;padding:4px 10px;
+        font-family:'Courier New',monospace;font-size:11px;color:var(--accent);margin:3px}
+
+  .done-banner{text-align:center;padding:16px 0;display:none}
+  .done-banner .big{font-size:52px}
+  .done-banner h2{color:var(--blue);font-size:18px;font-family:'Courier New',monospace;
+                   letter-spacing:2px;margin-top:8px}
+  .done-banner p{color:var(--muted);font-size:12px;margin-top:6px}
+
+  .refresh-wrap{height:2px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:10px}
+  .refresh-fill{height:100%;background:var(--accent);width:0%}
+  .times{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);
+         font-family:'Courier New',monospace;flex-wrap:wrap;gap:6px}
+
+  .error-box{background:rgba(255,77,109,.1);border:1px solid var(--danger);
+             border-radius:10px;padding:12px;color:var(--danger);font-size:12px;
+             display:none;margin-bottom:12px}
+  .connecting{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+  .spinner{width:36px;height:36px;border:3px solid var(--border);
+           border-top-color:var(--accent);border-radius:50%;
+           animation:spin .8s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .footer{color:var(--border);font-size:10px;text-align:center;
+          padding:10px 0 20px;font-family:monospace}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="lock-icon" id="headerIcon">🔒</div>
+  <div class="title">FILE GUARDIAN</div>
+  <div class="subtitle">Live Encryption Monitor</div>
+  <div>
+    <span class="live-badge">
+      <span class="pulse"></span>
+      LIVE — refreshes every 5s
+    </span>
+  </div>
+</div>
+
+<div class="connecting" id="connectingBox">
+  <div class="spinner"></div>
+  Connecting to monitor…
+</div>
+
+<div class="error-box" id="errorBox"></div>
+
+<div id="mainContent" style="display:none">
+  <div class="card">
+    <div class="card-label">⚡ STATUS</div>
+    <span class="badge s-offline" id="statusBadge">Connecting…</span>
+    <div class="phase" id="phaseText">—</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">📊 PROGRESS</div>
+    <div class="pct" id="pctText">0%</div>
+    <div class="bar-wrap"><div class="bar" id="bar" style="width:0%"></div></div>
+    <div class="bar-labels">
+      <span id="encCount">0 encrypted</span>
+      <span id="totCount">of 0 files</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-val" id="sEncrypted">0</div>
+      <div class="stat-lbl">Encrypted</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="sRemaining">—</div>
+      <div class="stat-lbl">Remaining</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">📄 CURRENT FILE</div>
+    <div class="file-box" id="currentFile">—</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">🖥 TARGET DRIVES</div>
+    <div id="drivesList" style="color:var(--muted);font-size:12px">—</div>
+  </div>
+
+  <div class="done-banner" id="doneBanner">
+    <div class="big">✅</div>
+    <h2>SYSTEM SECURED</h2>
+    <p id="doneSummary">All files encrypted successfully.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-label">🕐 TIMELINE</div>
+    <div class="times">
+      <span>Started: <span id="startedAt" style="color:var(--text)">—</span></span>
+      <span>Updated: <span id="updatedAt" style="color:var(--text)">—</span></span>
+    </div>
+    <div class="refresh-wrap">
+      <div class="refresh-fill" id="refreshFill"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">AES-128 · PBKDF2-SHA256 · Powered by ntfy.sh</div>
+
+<script>
+  // ── No token needed — uses ntfy.sh ────────────────────────────────────────
+  const TOPIC      = 'madhan-guardian-308c467d';
+  const NTFY_URL   = `https://ntfy.sh/${TOPIC}/json?poll=1&since=10m`;
+  const REFRESH_MS = 5000;
+
+  async function fetchStatus() {
+    animateRefresh();
+    try {
+      const res = await fetch(NTFY_URL, { cache: 'no-store' });
+
+      if (!res.ok) {
+        showError(`ntfy.sh error ${res.status}. Is file_guardian.py running?`);
+        return;
+      }
+
+      const text = await res.text();
+      const lines = text.trim().split('\n').filter(l => l.trim());
+
+      if (!lines.length) {
+        showError('No data yet. Run file_guardian.py on your PC first, then refresh.');
+        return;
+      }
+
+      // Get the LAST message (most recent state)
+      const lastLine = lines[lines.length - 1];
+      const msg  = JSON.parse(lastLine);
+
+      // The message body is our JSON state (compressed keys)
+      const raw  = JSON.parse(msg.message);
+
+      // Expand compressed keys back to full names
+      const d = {
+        status    : raw.s   || "idle",
+        phase     : raw.ph  || "—",
+        current   : raw.cur || "",
+        encrypted : raw.enc || 0,
+        total     : raw.tot || 0,
+        percent   : raw.pct || 0,
+        drives    : raw.drv || [],
+        started_at: raw.sat || "",
+        updated_at: raw.uat || "",
+        done      : raw.don || false,
+        error     : raw.err || ""
+      };
+
+      hideError();
+      document.getElementById('connectingBox').style.display = 'none';
+      document.getElementById('mainContent').style.display   = 'block';
+      render(d);
+
+    } catch(e) {
+      showError(`Failed to connect: ${e.message}. Make sure file_guardian.py is running.`);
+    }
+  }
+
+  function render(d) {
+    const pct = d.percent || 0;
+    document.getElementById('headerIcon').textContent = d.done ? '🔐' : '🔒';
+
+    const badge = document.getElementById('statusBadge');
+    badge.className = 'badge s-' + (d.done ? 'done' :
+      d.status === 'running'  ? 'running'  :
+      d.status === 'starting' ? 'starting' :
+      d.status === 'error'    ? 'error'    :
+      d.status === 'idle'     ? 'idle'     : 'offline');
+    badge.textContent =
+      d.done                ? '✅  COMPLETE'   :
+      d.status==='running'  ? '⚡  ENCRYPTING' :
+      d.status==='starting' ? '🔄  STARTING'   :
+      d.status==='error'    ? '❌  ERROR'       :
+      d.status==='idle'     ? '⏸  IDLE'        : '📡  OFFLINE';
+
+    document.getElementById('phaseText').textContent   = d.phase || '—';
+    document.getElementById('pctText').textContent     = pct + '%';
+    document.getElementById('bar').style.width         = pct + '%';
+    document.getElementById('encCount').textContent    = (d.encrypted||0).toLocaleString() + ' encrypted';
+    document.getElementById('totCount').textContent    = 'of ' + (d.total||0).toLocaleString() + ' files';
+    document.getElementById('currentFile').textContent = d.current || '—';
+    document.getElementById('sEncrypted').textContent  = (d.encrypted||0).toLocaleString();
+    document.getElementById('sRemaining').textContent  =
+      d.total ? (d.total-(d.encrypted||0)).toLocaleString() : '—';
+    document.getElementById('startedAt').textContent   = d.started_at || '—';
+    document.getElementById('updatedAt').textContent   = d.updated_at || '—';
+
+    if (d.drives && d.drives.length) {
+      document.getElementById('drivesList').innerHTML =
+        d.drives.map(dr => `<span class="chip">💾 ${dr}</span>`).join('');
+    }
+
+    if (d.done) {
+      document.getElementById('doneBanner').style.display = 'block';
+      document.getElementById('doneSummary').textContent  =
+        `${(d.encrypted||0).toLocaleString()} files encrypted across ${(d.drives||[]).length} drive(s).`;
+    }
+  }
+
+  function showError(msg) {
+    const b = document.getElementById('errorBox');
+    b.textContent = '⚠️  ' + msg;
+    b.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('errorBox').style.display = 'none';
+  }
+
+  function animateRefresh() {
+    const fill = document.getElementById('refreshFill');
+    fill.style.transition = 'none';
+    fill.style.width = '0%';
+    requestAnimationFrame(() => {
+      fill.style.transition = `width ${REFRESH_MS}ms linear`;
+      fill.style.width = '100%';
+    });
+  }
+
+  fetchStatus();
+  setInterval(fetchStatus, REFRESH_MS);
+</script>
+</body>
+</html>
