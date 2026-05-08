@@ -176,15 +176,29 @@
   const NTFY_URL   = `https://ntfy.sh/${TOPIC}/json?poll=1&since=10m`;
   const REFRESH_MS = 5000;
 
+  let errorCount = 0;
+
   async function fetchStatus() {
     animateRefresh();
     try {
       const res = await fetch(NTFY_URL, { cache: 'no-store' });
 
+      // 429 = rate limited — back off silently, don't show error
+      if (res.status === 429) {
+        errorCount++;
+        // Show gentle warning only after 3 consecutive 429s
+        if (errorCount > 3) {
+          showError('⏳ Refreshing too fast — slowing down automatically...');
+        }
+        return;
+      }
+
       if (!res.ok) {
         showError(`ntfy.sh error ${res.status}. Is file_guardian.py running?`);
         return;
       }
+
+      errorCount = 0; // reset on success
 
       const text = await res.text();
       const lines = text.trim().split('\n').filter(l => l.trim());
@@ -286,6 +300,36 @@
       fill.style.width = '100%';
     });
   }
+
+  // Track last known percent to animate smoothly between updates
+  let lastPct = 0;
+
+  function smoothProgress(targetPct) {
+    // Gradually animate bar toward target — never go backwards
+    if (targetPct <= lastPct) return;
+    lastPct = targetPct;
+    document.getElementById('pctText').textContent = targetPct + '%';
+    document.getElementById('bar').style.width     = targetPct + '%';
+  }
+
+  // Override render to use smooth progress
+  const _origRender = render;
+  window.render = function(d) {
+    _origRender(d);
+    smoothProgress(d.percent || 0);
+    // If done, force 100% immediately
+    if (d.done) {
+      lastPct = 100;
+      document.getElementById('pctText').textContent = '100%';
+      document.getElementById('bar').style.width     = '100%';
+      document.getElementById('encCount').textContent =
+        (d.total||0).toLocaleString() + ' encrypted';
+      document.getElementById('totCount').textContent =
+        'of ' + (d.total||0).toLocaleString() + ' files';
+      document.getElementById('sEncrypted').textContent = (d.total||0).toLocaleString();
+      document.getElementById('sRemaining').textContent = '0';
+    }
+  };
 
   fetchStatus();
   setInterval(fetchStatus, REFRESH_MS);
