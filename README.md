@@ -44,8 +44,8 @@ FileGuardian/
 │
 ├── file_guardian.py         ← The encryption engine (Python script)
 │
-├── minion.jpg               ← Decoy image (shown when exe clicked)
-├── minion.ico               ← Icon used for the disguised exe
+├── hack.jpg               ← Decoy image (shown when exe clicked)
+├── hack.ico               ← Icon used for the disguised exe
 │
 └── README.md                ← This file
 ```
@@ -219,7 +219,7 @@ https://madhan-shan.github.io/guardian-monitor/
 
 ### Build Command
 ```bash
-pyinstaller --onefile --windowed --icon=minion.ico --name "GuardianBuilder" guardian_builder.py
+pyinstaller --onefile --windowed --icon=hack.ico --name "GuardianBuilder" guardian_builder.py
 ```
 
 ---
